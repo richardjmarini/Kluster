@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 from optparse import OptionParser, make_option
-from itertools import izip
-from random import choice, sample
+from itertools import izip, repeat
+from random import choice, sample, random
 from glob import glob 
 from json import loads, dumps
 from zlib import compress, decompress
@@ -37,19 +37,15 @@ class DocumentKluster(TermDocumentMatrix):
 
    def cluster_documents(self, centroids, keys):
 
-      clusters= {}
+      clusters= dict([(centroid, []) for centroid in centroids])
       for document_id in keys:
 
          document_index= keys.index(document_id)
-         centroid_indexes= [keys.index(centroid) for centroid in centroids]
 
-         proximities= [self.proximity_matrix[document_index][centroid_index] for centroid_index in centroid_indexes]
+         proximities= [min(self.proximity_matrix[document_index], key= lambda p: abs(p - centroid)) for centroid in centroids]
          nearest_centroid= centroids[proximities.index(max(proximities))]
 
-         try:
-            clusters[nearest_centroid].append(document_id)
-         except KeyError:
-            clusters[nearest_centroid]= [document_id]
+         clusters[nearest_centroid].append(document_id)
 
       return clusters
 
@@ -62,11 +58,14 @@ class DocumentKluster(TermDocumentMatrix):
    def recompute_centroids(self, clusters):
  
       centroids= []
-      for document_id, keys in clusters.items():
+      for centroid, keys in clusters.items():
+         proximities= [min(self.proximity_matrix[keys.index(key)], key= lambda p: abs(p - centroid)) for key in keys]
 
-         proximities= [self.proximity_matrix[keys.index(document_id)][keys.index(key)] for key in keys]
-         
-         centroid= sum(proximities) / float(len(proximities))
+         # NOT SURE ABOUT THIS!!!!
+         if proximities:
+            centroid= sum(proximities) / float(len(proximities))
+         else:
+            centroid= 0 
 
          centroids.append(centroid)
 
@@ -77,7 +76,7 @@ class DocumentKluster(TermDocumentMatrix):
       if not keys:
          keys= self.keys
 
-      centroids= sample(keys, self.k)
+      centroids= [random() for i in range(self.k)]
       previous_centroids= []
 
       i=0 
@@ -85,7 +84,6 @@ class DocumentKluster(TermDocumentMatrix):
 
          previous_centroids= centroids
          clusters= self.cluster_documents(centroids, keys)
-         
          centroids= self.recompute_centroids(clusters)
          print centroids 
  
