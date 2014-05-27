@@ -23,7 +23,7 @@ class DocumentKluster(TermDocumentMatrix):
 
       super(DocumentKluster, self).__init__(idf_enabled= False)
 
-      self.k= 3
+      self.k= k
 
    def index(self):
 
@@ -38,6 +38,7 @@ class DocumentKluster(TermDocumentMatrix):
    def cluster_documents(self, centroids, keys):
 
       clusters= dict([(centroid, []) for centroid in centroids])
+      
       for document_id in keys:
 
          document_index= keys.index(document_id)
@@ -64,11 +65,9 @@ class DocumentKluster(TermDocumentMatrix):
          # NOT SURE ABOUT THIS!!!!
          if proximities:
             centroid= sum(proximities) / float(len(proximities))
-         else:
-            centroid= 0 
 
          centroids.append(centroid)
-
+      
       return centroids
 
    def find_centers(self, keys= None):
@@ -76,23 +75,30 @@ class DocumentKluster(TermDocumentMatrix):
       if not keys:
          keys= self.keys
 
+      #centroids= [1.0 / ((i * len(keys)) / self.k) for i in range(1, self.k)]  
       centroids= [random() for i in range(self.k)]
-      previous_centroids= []
 
+      print centroids
+      previous_centroids= []
+      
       i=0 
       while not self.has_converged(centroids, previous_centroids):
 
          previous_centroids= centroids
+         
          clusters= self.cluster_documents(centroids, keys)
          centroids= self.recompute_centroids(clusters)
-         print centroids 
+         
+      pprint(clusters)
+        
  
 def parse_args(argv):
 
    optParser= OptionParser()
 
    [optParser.add_option(opt) for opt in [
-      make_option("-d", "--documents", default= path.join(pardir, "documents", "*.dat"), help= "documents directory")
+      make_option("-d", "--documents", default= path.join(pardir, "documents", "*.dat"), help= "documents directory"),
+      make_option("-k", "--k", default= 3, type= int, help= "number of k clustering points")
    ]]
 
    optParser.set_usage("%prog --query")
@@ -105,18 +111,18 @@ if __name__ == '__main__':
 
    opts= parse_args(argv)
 
-   dk= DocumentKluster()
+   dk= DocumentKluster(opts.k)
 
    i= 0
    for filename in glob(opts.documents):
 
       fh= open(filename, "r")
-      data= decompress(b64decode(loads(fh.read()).get("payload")))
+      data= fh.read()
+      #data= decompress(b64decode(loads(fh.read()).get("payload")))
       fh.close()
-      dk.add(data)
-
+      dk.add(data, id= filename)
       i+= 1
-      if i >= 25:
+      if i >= 10:
          break
    
    dk.index()
