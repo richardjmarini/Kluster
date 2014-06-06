@@ -44,9 +44,23 @@ class DocumentKluster(TermDocumentMatrix):
          document_index= keys.index(document_id)
 
          proximities= [min(self.proximity_matrix[document_index], key= lambda p: abs(p - centroid)) for centroid in centroids]
-         nearest_centroid= centroids[proximities.index(max(proximities))]
+
+         nearest_centroid= centroids[proximities.index(min(proximities))]
 
          clusters[nearest_centroid].append(document_id)
+
+      # redistrbute farthest node from centroid of largest cluster to empty clusters
+      empty_clusters= filter(lambda (k, v): len(v) == 0, clusters.items())
+      for (empty_centroid, empty_cluster) in empty_clusters:
+
+         (centroid, documents)= sorted(clusters.items(), key= lambda (k, v): len(v), reverse= True)[0]
+
+         #proximities= [max([abs(p - centroid) for p in self.proximity_matrix[self.keys.index(document)]]) for document in documents]
+         proximities= [max(self.proximity_matrix[keys.index(document)], key= lambda p: abs(p - centroid)) for document in documents]
+         farthest= documents[proximities.index(max(proximities))]
+ 
+         del clusters[centroid][clusters[centroid].index(farthest)]
+         clusters[empty_centroid].append(farthest)
 
       return clusters
 
@@ -57,17 +71,17 @@ class DocumentKluster(TermDocumentMatrix):
       return converged
 
    def recompute_centroids(self, clusters):
- 
+
       centroids= []
       for centroid, keys in clusters.items():
-         proximities= [min(self.proximity_matrix[keys.index(key)], key= lambda p: abs(p - centroid)) for key in keys]
 
+         proximities= [min(self.proximity_matrix[keys.index(key)], key= lambda p: abs(p - centroid)) for key in keys]
          # NOT SURE ABOUT THIS!!!!
          if proximities:
             centroid= sum(proximities) / float(len(proximities))
 
          centroids.append(centroid)
-      
+
       return centroids
 
    def find_centers(self, keys= None):
@@ -75,10 +89,9 @@ class DocumentKluster(TermDocumentMatrix):
       if not keys:
          keys= self.keys
 
-      #centroids= [1.0 / ((i * len(keys)) / self.k) for i in range(1, self.k)]  
+      #centroids= [1.0 / ((i * len(keys)) / self.k) for i in range(1, self.k+1)]  
       centroids= [random() for i in range(self.k)]
 
-      print centroids
       previous_centroids= []
       
       i=0 
